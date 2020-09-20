@@ -6,7 +6,6 @@ import 'package:speech_to_text/speech_to_text.dart';
 import 'package:voice_controll_next/data/incoming_phrases.dart';
 import 'package:voice_controll_next/data/listen_status_color.dart';
 
-
 class TextRecognizePage extends StatefulWidget {
   @override
   _TextRecognizePageState createState() => _TextRecognizePageState();
@@ -21,6 +20,10 @@ class _TextRecognizePageState extends State<TextRecognizePage> {
   String _currentLocaleId = "";
   List<LocaleName> _localeNames = [];
   String _isListeningText = "";
+
+  PageController _pageController = PageController();
+  Duration _animationDuration = Duration(milliseconds: 400);
+  Curve _animeCurve = Curves.easeIn;
 
   @override
   void initState() {
@@ -57,6 +60,19 @@ class _TextRecognizePageState extends State<TextRecognizePage> {
               String text = result.alternates.first.recognizedWords;
               //   result.alternates.map((e) => e.recognizedWords).join(" | ");
               _incomingPhrases.setPhrases(text);
+
+              switch(_incomingPhrases.action){
+                case PageNextActions.prev:
+                  _pageController.previousPage(duration: _animationDuration, curve: _animeCurve);
+                  _incomingPhrases.resetAction();
+                  break;
+                case PageNextActions.next:
+                  _pageController.nextPage(duration: _animationDuration, curve: _animeCurve);
+                  _incomingPhrases.resetAction();
+                  break;
+                case PageNextActions.idle:
+                  break;
+              }
             },
             listenFor: Duration(seconds: 15),
             localeId: _currentLocaleId)
@@ -93,27 +109,49 @@ class _TextRecognizePageState extends State<TextRecognizePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        width: MediaQuery.of(context).size.width,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: <Widget>[
-            _listeningIndicator(),
-            _listeningIndicator2(),
-            Expanded(child: _incomingPhrasesText()),
-            DropdownButton(
-              onChanged: (selectedVal) => _switchLang(selectedVal),
-              value: _currentLocaleId,
-              items: _localeNames
-                  .map(
-                    (localeName) => DropdownMenuItem(
-                      value: localeName.localeId,
-                      child: Text(localeName.name),
+      body: ChangeNotifierProvider.value(
+        value: _incomingPhrases,
+        child: Container(
+          width: MediaQuery.of(context).size.width,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: <Widget>[
+              
+              Consumer<IncomingPhrases>(
+                builder: (BuildContext context, IncomingPhrases value, Widget child){
+                  return Container(
+                    height: MediaQuery.of(context).size.height / 2,
+                    width: MediaQuery.of(context).size.width,
+                    child: PageView(
+                      controller: _pageController,
+                      children: List.generate(
+                          Colors.accents.length,
+                              (index) => Container(
+                                // decoration: BoxDecoration(
+                                //   border: Border.all(width: 10,color: Colors.black),
+                                //   color: Colors.accents[index % Colors.accents.length],
+                                // ),
+                            color: Colors.accents[index % Colors.accents.length],
+                          )),
                     ),
-                  )
-                  .toList(),
-            )
-          ],
+                  );
+                },
+              ),
+              Expanded(child: _incomingPhrasesText()),
+              DropdownButton(
+                onChanged: (selectedVal) => _switchLang(selectedVal),
+                value: _currentLocaleId,
+                items: _localeNames
+                    .map(
+                      (localeName) => DropdownMenuItem(
+                        value: localeName.localeId,
+                        child: Text(localeName.name),
+                      ),
+                    )
+                    .toList(),
+              )
+            ],
+          ),
         ),
       ),
     );
@@ -155,14 +193,11 @@ class _TextRecognizePageState extends State<TextRecognizePage> {
     );
   }
 
-  ChangeNotifierProvider<IncomingPhrases> _incomingPhrasesText() {
-    return ChangeNotifierProvider<IncomingPhrases>.value(
-      value: _incomingPhrases,
-      child: Consumer<IncomingPhrases>(
-        builder: (BuildContext context, IncomingPhrases value, Widget child) {
-          return Text(value.phrases);
-        },
-      ),
+   Widget _incomingPhrasesText() {
+    return Consumer<IncomingPhrases>(
+      builder: (BuildContext context, IncomingPhrases value, Widget child) {
+        return Text(value.phrases);
+      },
     );
   }
 
